@@ -177,6 +177,7 @@ app.get('/api/wallet/history', authMiddleware, async (req, res) => {
   }
 });
 
+// POST /api/wallet/withdraw-request
 app.post('/api/wallet/withdraw-request', authMiddleware, async (req, res) => {
   try {
     const { coin, amount } = req.body || {};
@@ -184,33 +185,58 @@ app.post('/api/wallet/withdraw-request', authMiddleware, async (req, res) => {
     const amt = Number(amount);
     if (Number.isNaN(amt) || amt <= 0) return res.status(422).json({ msg: 'Invalid amount' });
 
+    // Find user
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
+    // Ensure sufficient balance (you can remove this if you prefer admin-only checking)
     if (user.balance < amt) return res.status(400).json({ msg: 'Insufficient balance' });
 
-    user.withdrawals = user.withdrawals || [];
-    user.withdrawals.push({ coin, amount: amt, status: 'pending', date: new Date() });
-    await user.save();
+    const withdrawal = { coin, amount: amt, status: 'pending', date: new Date() };
 
-    res.json({ msg: 'Withdrawal request submitted', withdrawals: user.withdrawals });
+    // Atomic push (no read-modify-write race)
+    const updated = await User.findByIdAndUpdate(
+      req.user.id,
+      { $push: { withdrawals: withdrawal } },
+      { new: true, select: 'withdrawals' }
+    ).lean();
+
+    console.log(`[withdraw-request] user=${req.user.id} coin=${coin} amount=${amt}`);
+
+    return res.json({ msg: 'Withdrawal request submitted', withdrawal: updated.withdrawals.slice(-1)[0], withdrawals: updated.withdrawals });
   } catch (err) {
     console.error('/wallet/withdraw-request error:', err);
-    res.status(500).json({ msg: 'Server error' });
+    return res.status(500).json({ msg: 'Server error' });
   }
 });
 
+// GET /api/wallet/withdrawals  (user view)
 app.get('/api/wallet/withdrawals', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('withdrawals');
     if (!user) return res.status(404).json({ msg: 'User not found' });
-    res.json({ withdrawals: user.withdrawals || [] });
+    return res.json({ withdrawals: user.withdrawals || [] });
   } catch (err) {
     console.error('/wallet/withdrawals error:', err);
-    res.status(500).json({ msg: 'Server error' });
+    return res.status(500).json({ msg: 'Server error' });
   }
 });
 
+// GET /api/admin/withdrawals  (admin view)
+app.get('/api/admin/withdrawals', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    // find users having at least one withdrawal entry
+    const users = await User.find({ 'withdrawals.0': { $exists: true } })
+      .select('_id email withdrawals')
+      .lean();
+
+    console.log(`[admin/withdrawals] found ${users.length} user(s) with withdrawals`);
+    return res.json({ users });
+  } catch (err) {
+    console.error('/admin/withdrawals error:', err);
+    return res.status(500).json({ msg: 'Server error' });
+  }
+});
 // --------- Investments routes ----------
 app.post('/api/investments/create', authMiddleware, async (req, res) => {
   try {
@@ -328,18 +354,6 @@ app.post('/api/admin/status', authMiddleware, requireAdmin, async (req, res) => 
 });
 
 // ---------- Admin: withdrawals management ----------
-app.get('/api/admin/withdrawals', authMiddleware, requireAdmin, async (req, res) => {
-  try {
-    // return users who have withdrawals
-    const users = await User.find({ 'withdrawals.0': { $exists: true } })
-      .select('_id email withdrawals')
-      .lean();
-    res.json({ users });
-  } catch (err) {
-    console.error('/admin/withdrawals error:', err);
-    res.status(500).json({ msg: 'Server error' });
-  }
-});
 
 app.post('/api/admin/withdrawals/update', authMiddleware, requireAdmin, async (req, res) => {
   try {
