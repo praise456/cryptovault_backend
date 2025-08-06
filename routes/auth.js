@@ -20,13 +20,7 @@ const handleValidation = (req, res) => {
 // POST /api/register
 router.post(
   '/register',
-  limiter,
-  [
-    body('email').isEmail().withMessage('Please provide a valid email'),
-    body('password')
-      .isLength({ min: 6 })
-      .withMessage('Password must be at least 6 characters')
-  ],
+
   async (req, res) => {
     if (handleValidation(req, res)) return;
     const { email, password } = req.body || {};
