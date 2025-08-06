@@ -9,13 +9,16 @@ const User = require('./models/User');
 const app = express();
 
 app.use(cors());
+
+// ✅ If you want to restrict to your frontend's domain in production:
+ // app.use(cors({ origin: 'https://yourfrontenddomain.com' }));
+
 app.use(express.json());
 
+// ✅ Mount routes AFTER cors() and express.json()
+app.use('/api', require('./routes/auth'));
 
-app.use(cors({ origin: true })); // in production set origin: 'https://your-frontend.com'
-app.use(express.json());
-
-
+// ... your other routes ...
 const uri = 'mongodb+srv://admin:Stellar43@cluster0.xly04mf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
     mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
 .then(() => {
