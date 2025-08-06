@@ -13,7 +13,7 @@ router.post("/send-verification", async (req, res) => {
   if (!user) return res.status(400).json({ error: "User not found" });
 
   const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
-  const link = `http://localhost:5500/verify.html?token=${token}`;
+  const link = `https://crypto-backend-t3bz.onrender.com//verify.html?token=${token}`;
   const html = `<h3>Verify your email</h3><p><a href="${link}">Click here to verify</a></p>`;
   await sendEmail(email, "Verify Your Email", html);
   res.json({ msg: "Verification email sent" });
@@ -25,7 +25,7 @@ router.get("/verify-email", async (req, res) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     await User.findByIdAndUpdate(decoded.id, { verified: true });
-    res.redirect("http://localhost:5500/verify.html");
+    res.redirect("https://crypto-backend-t3bz.onrender.com//verify.html");
   } catch (e) {
     res.status(400).send("Invalid or expired token");
   }
@@ -38,7 +38,7 @@ router.post("/forgot-password", async (req, res) => {
   if (!user) return res.status(400).json({ error: "User not found" });
 
   const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
-  const link = `http://localhost:5500/reset-password.html?token=${token}`;
+  const link = `https://crypto-backend-t3bz.onrender.com//reset-password.html?token=${token}`;
   const html = `<h3>Reset your password</h3><p><a href="${link}">Click here to reset</a></p>`;
   await sendEmail(email, "Reset Password", html);
   res.json({ msg: "Reset email sent" });
