@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 
@@ -10,10 +9,11 @@ const User = require('./models/User');
 
 const app = express();
 
-/* ---------- Security & CORS ---------- */
-app.use(helmet());  // security headers
-app.use(cors());    // allow all origins for now (dev mode)
-// In production, restrict:
+/* ---------- CORS ---------- */
+// Allow all origins for now (development)
+app.use(cors());
+
+// In production, restrict to your frontend domain:
 // app.use(cors({ origin: 'https://your-frontend-domain.com' }));
 
 /* ---------- Middleware ---------- */
@@ -82,5 +82,5 @@ app.use((err, req, res, next) => {
 });
 
 /* ---------- Start Server ---------- */
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
