@@ -177,6 +177,40 @@ app.get('/api/wallet/history', authMiddleware, async (req, res) => {
   }
 });
 
+app.post('/api/wallet/withdraw-request', authMiddleware, async (req, res) => {
+  try {
+    const { coin, amount } = req.body || {};
+    if (!coin) return res.status(422).json({ msg: 'Coin is required' });
+    const amt = Number(amount);
+    if (Number.isNaN(amt) || amt <= 0) return res.status(422).json({ msg: 'Invalid amount' });
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ msg: 'User not found' });
+
+    if (user.balance < amt) return res.status(400).json({ msg: 'Insufficient balance' });
+
+    user.withdrawals = user.withdrawals || [];
+    user.withdrawals.push({ coin, amount: amt, status: 'pending', date: new Date() });
+    await user.save();
+
+    res.json({ msg: 'Withdrawal request submitted', withdrawals: user.withdrawals });
+  } catch (err) {
+    console.error('/wallet/withdraw-request error:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+app.get('/api/wallet/withdrawals', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('withdrawals');
+    if (!user) return res.status(404).json({ msg: 'User not found' });
+    res.json({ withdrawals: user.withdrawals || [] });
+  } catch (err) {
+    console.error('/wallet/withdrawals error:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
 // --------- Investments routes ----------
 app.post('/api/investments/create', authMiddleware, async (req, res) => {
   try {
@@ -289,6 +323,51 @@ app.post('/api/admin/status', authMiddleware, requireAdmin, async (req, res) => 
     res.json({ msg: 'Investment status updated', investment: user.investments[idx] });
   } catch (err) {
     console.error('/admin/status error:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// ---------- Admin: withdrawals management ----------
+app.get('/api/admin/withdrawals', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    // return users who have withdrawals
+    const users = await User.find({ 'withdrawals.0': { $exists: true } })
+      .select('_id email withdrawals')
+      .lean();
+    res.json({ users });
+  } catch (err) {
+    console.error('/admin/withdrawals error:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+app.post('/api/admin/withdrawals/update', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { userId, index, status } = req.body || {};
+    if (!userId || !isObjectId(userId)) return res.status(422).json({ msg: 'Valid userId required' });
+    if (!['approved', 'rejected'].includes(status)) return res.status(422).json({ msg: 'Invalid status' });
+    const idx = Number(index);
+    if (!Number.isInteger(idx) || idx < 0) return res.status(422).json({ msg: 'Valid index required' });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: 'User not found' });
+    if (!user.withdrawals || !user.withdrawals[idx]) return res.status(404).json({ msg: 'Withdrawal not found' });
+
+    // Approve: deduct balance (ensure sufficient)
+    if (status === 'approved') {
+      if (user.balance < user.withdrawals[idx].amount) {
+        return res.status(400).json({ msg: 'Insufficient balance to approve' });
+      }
+      // atomic-ish: modify and save
+      user.balance -= user.withdrawals[idx].amount;
+    }
+
+    user.withdrawals[idx].status = status;
+    await user.save();
+
+    res.json({ msg: `Withdrawal ${status}`, withdrawals: user.withdrawals });
+  } catch (err) {
+    console.error('/admin/withdrawals/update error:', err);
     res.status(500).json({ msg: 'Server error' });
   }
 });
