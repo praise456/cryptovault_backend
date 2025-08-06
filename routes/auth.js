@@ -2,17 +2,12 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const rateLimit = require('express-rate-limit');
+
 const User = require('../models/User');
 
 const router = express.Router();
 
-// rate limiter
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: { msg: 'Too many requests, please try again later.' },
-});
+
 
 const handleValidation = (req, res) => {
   const errors = validationResult(req);
