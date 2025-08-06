@@ -1,4 +1,4 @@
-// server.js — single-file Express app with auth, wallet, investments, admin
+// server.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -10,7 +10,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --------- Config checks ----------
+// ---------- Config checks ----------
 const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!MONGO_URI) {
@@ -22,7 +22,7 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
-// --------- MongoDB connection ----------
+// ---------- MongoDB ----------
 mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => {
@@ -30,7 +30,7 @@ mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     process.exit(1);
   });
 
-// --------- User model (inline) ----------
+// ---------- Schemas & Model ----------
 const investmentSchema = new mongoose.Schema({
   plan: String,
   amount: Number,
@@ -47,6 +47,13 @@ const walletEntrySchema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
 }, { _id: false });
 
+const withdrawalSchema = new mongoose.Schema({
+  coin: String,
+  amount: Number,
+  status: { type: String, default: 'pending' }, // pending, approved, rejected
+  date: { type: Date, default: Date.now }
+}, { _id: false });
+
 const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
@@ -54,15 +61,23 @@ const userSchema = new mongoose.Schema({
   balance: { type: Number, default: 0 },
   investments: [investmentSchema],
   wallet: [walletEntrySchema],
+  withdrawals: [withdrawalSchema]
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);
 
-// --------- Auth middleware ----------
+// ---------- Helpers ----------
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+function isObjectId(id) {
+  return mongoose.Types.ObjectId.isValid(id);
+}
+
+// ---------- Auth middleware ----------
 function authMiddleware(req, res, next) {
   const token = req.header('x-auth-token') || (req.header('authorization') || '').replace('Bearer ', '');
   if (!token) return res.status(401).json({ msg: 'No token provided' });
-
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = { id: decoded.id };
@@ -72,16 +87,8 @@ function authMiddleware(req, res, next) {
   }
 }
 
-// --------- Helpers ----------
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function isObjectId(id) {
-  return mongoose.Types.ObjectId.isValid(id);
-}
-
-// --------- Auth routes ---------
+// ---------- Routes ----------
+// Register
 app.post('/api/register', async (req, res) => {
   try {
     const { email, password } = req.body || {};
@@ -107,6 +114,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
+// Login
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body || {};
@@ -128,7 +136,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// --------- Protected /user endpoint ----------
+// Protected current user
 app.get('/user', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
@@ -140,7 +148,7 @@ app.get('/user', authMiddleware, async (req, res) => {
   }
 });
 
-// --------- Wallet routes ----------
+// ---------- Wallet: deposit & history ----------
 app.post('/api/wallet/deposit', authMiddleware, async (req, res) => {
   try {
     const { coin, amount } = req.body || {};
@@ -177,7 +185,7 @@ app.get('/api/wallet/history', authMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/wallet/withdraw-request
+// ---------- Withdrawals (user) ----------
 app.post('/api/wallet/withdraw-request', authMiddleware, async (req, res) => {
   try {
     const { coin, amount } = req.body || {};
@@ -185,16 +193,13 @@ app.post('/api/wallet/withdraw-request', authMiddleware, async (req, res) => {
     const amt = Number(amount);
     if (Number.isNaN(amt) || amt <= 0) return res.status(422).json({ msg: 'Invalid amount' });
 
-    // Find user
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
-    // Ensure sufficient balance (you can remove this if you prefer admin-only checking)
     if (user.balance < amt) return res.status(400).json({ msg: 'Insufficient balance' });
 
     const withdrawal = { coin, amount: amt, status: 'pending', date: new Date() };
 
-    // Atomic push (no read-modify-write race)
     const updated = await User.findByIdAndUpdate(
       req.user.id,
       { $push: { withdrawals: withdrawal } },
@@ -202,7 +207,6 @@ app.post('/api/wallet/withdraw-request', authMiddleware, async (req, res) => {
     ).lean();
 
     console.log(`[withdraw-request] user=${req.user.id} coin=${coin} amount=${amt}`);
-
     return res.json({ msg: 'Withdrawal request submitted', withdrawal: updated.withdrawals.slice(-1)[0], withdrawals: updated.withdrawals });
   } catch (err) {
     console.error('/wallet/withdraw-request error:', err);
@@ -210,7 +214,6 @@ app.post('/api/wallet/withdraw-request', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/wallet/withdrawals  (user view)
 app.get('/api/wallet/withdrawals', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('withdrawals');
@@ -222,22 +225,7 @@ app.get('/api/wallet/withdrawals', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/admin/withdrawals  (admin view)
-app.get('/api/admin/withdrawals', authMiddleware, requireAdmin, async (req, res) => {
-  try {
-    // find users having at least one withdrawal entry
-    const users = await User.find({ 'withdrawals.0': { $exists: true } })
-      .select('_id email withdrawals')
-      .lean();
-
-    console.log(`[admin/withdrawals] found ${users.length} user(s) with withdrawals`);
-    return res.json({ users });
-  } catch (err) {
-    console.error('/admin/withdrawals error:', err);
-    return res.status(500).json({ msg: 'Server error' });
-  }
-});
-// --------- Investments routes ----------
+// ---------- Investments ----------
 app.post('/api/investments/create', authMiddleware, async (req, res) => {
   try {
     const { plan, amount, duration, rate } = req.body || {};
@@ -283,7 +271,7 @@ app.get('/api/investments', authMiddleware, async (req, res) => {
   }
 });
 
-// --------- Admin routes ----------
+// ---------- Admin helpers ----------
 async function requireAdmin(req, res, next) {
   try {
     const adminUser = await User.findById(req.user.id).select('role');
@@ -296,6 +284,7 @@ async function requireAdmin(req, res, next) {
   }
 }
 
+// ---------- Admin: user list, credit, investment status ----------
 app.get('/api/admin/users', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page || '1', 10));
@@ -303,7 +292,7 @@ app.get('/api/admin/users', authMiddleware, requireAdmin, async (req, res) => {
     const skip = (page - 1) * limit;
 
     const users = await User.find({})
-      .select('_id email balance investments role wallet')
+      .select('_id email balance investments role wallet withdrawals')
       .skip(skip)
       .limit(limit)
       .lean();
@@ -321,10 +310,11 @@ app.post('/api/admin/credit', authMiddleware, requireAdmin, async (req, res) => 
     const { userId, amount } = req.body || {};
     if (!userId || !isObjectId(userId)) return res.status(422).json({ msg: 'Valid userId is required' });
     const amt = Number(amount);
-    if (Number.isNaN(amt) || amt <= 0) return res.status(422).json({ msg: 'Amount must be positive' });
+    if (Number.isNaN(amt) || amt <= 0) return res.status(422).json({ msg: 'Amount must be a positive number' });
 
     const updated = await User.findByIdAndUpdate(userId, { $inc: { balance: amt } }, { new: true }).select('_id email balance');
     if (!updated) return res.status(404).json({ msg: 'Target user not found' });
+
     res.json({ msg: 'User credited', user: updated });
   } catch (err) {
     console.error('/admin/credit error:', err);
@@ -354,6 +344,19 @@ app.post('/api/admin/status', authMiddleware, requireAdmin, async (req, res) => 
 });
 
 // ---------- Admin: withdrawals management ----------
+app.get('/api/admin/withdrawals', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const users = await User.find({ 'withdrawals.0': { $exists: true } })
+      .select('_id email withdrawals')
+      .lean();
+
+    console.log(`[admin/withdrawals] found ${users.length} user(s) with withdrawals`);
+    res.json({ users });
+  } catch (err) {
+    console.error('/admin/withdrawals error:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
 
 app.post('/api/admin/withdrawals/update', authMiddleware, requireAdmin, async (req, res) => {
   try {
@@ -367,12 +370,11 @@ app.post('/api/admin/withdrawals/update', authMiddleware, requireAdmin, async (r
     if (!user) return res.status(404).json({ msg: 'User not found' });
     if (!user.withdrawals || !user.withdrawals[idx]) return res.status(404).json({ msg: 'Withdrawal not found' });
 
-    // Approve: deduct balance (ensure sufficient)
+    // Approve: deduct balance
     if (status === 'approved') {
       if (user.balance < user.withdrawals[idx].amount) {
         return res.status(400).json({ msg: 'Insufficient balance to approve' });
       }
-      // atomic-ish: modify and save
       user.balance -= user.withdrawals[idx].amount;
     }
 
@@ -386,24 +388,18 @@ app.post('/api/admin/withdrawals/update', authMiddleware, requireAdmin, async (r
   }
 });
 
-app.post('/api/wallet/withdraw-request', authMiddleware, async (req, res) => {
-  // ... validation ...
-  user.withdrawals.push({ coin, amount: amt, status: 'pending', date: new Date() });
-  await user.save();
-  res.json({ msg: 'Withdrawal request submitted', withdrawals: user.withdrawals });
-});
-
-// util: isObjectId
+// ---------- Utility ----------
 function isObjectId(id) {
   return mongoose.Types.ObjectId.isValid(id);
 }
 
-// --------- Global error handler ----------
+// ---------- Global error handler ----------
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ msg: 'Internal server error' });
 });
 
-// --------- Start server ----------
-const PORT = process.env.PORT || 10000;
+// ---------- Start server ----------
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
