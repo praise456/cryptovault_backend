@@ -6,7 +6,7 @@ const User = require('../models/User');
 const router = express.Router();
 
 // Register
-router.post('/register', async (req, res) => {
+router.post('api/register', async (req, res) => {
   const { email, password } = req.body;
 
   try {
@@ -27,7 +27,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('api/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
