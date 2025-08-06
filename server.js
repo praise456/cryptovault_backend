@@ -372,6 +372,13 @@ app.post('/api/admin/withdrawals/update', authMiddleware, requireAdmin, async (r
   }
 });
 
+app.post('/api/wallet/withdraw-request', authMiddleware, async (req, res) => {
+  // ... validation ...
+  user.withdrawals.push({ coin, amount: amt, status: 'pending', date: new Date() });
+  await user.save();
+  res.json({ msg: 'Withdrawal request submitted', withdrawals: user.withdrawals });
+});
+
 // util: isObjectId
 function isObjectId(id) {
   return mongoose.Types.ObjectId.isValid(id);
