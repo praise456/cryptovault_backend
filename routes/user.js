@@ -40,26 +40,34 @@ app.get('/user', async (req, res) => {
 
 
 // Post new investment
-router.post('/invest', auth, async (req, res) => {
-  const { plan, amount } = req.body;
-  const roiMap = { Starter: 0.05, Pro: 0.07, Elite: 0.10 };
+app.post('/api/user/invest', async (req, res) => {
+  const token = req.header('x-auth-token');
+  if (!token) return res.status(401).json({ msg: 'No token provided' });
 
   try {
-    const user = await User.findById(req.user.id);
-    const roi = amount * (roiMap[plan] || 0);
-    const investment = {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { plan, amount } = req.body;
+
+    if (!plan || typeof amount !== 'number') {
+      return res.status(400).json({ msg: 'Plan and amount are required' });
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user) return res.status(404).json({ msg: 'User not found' });
+
+    user.investments.push({
       plan,
       amount,
-      roi,
-      createdAt: new Date()
-    };
-    user.investments.push(investment);
-    user.balance += roi;
+      roi: 0,
+      date: new Date()
+    });
+
     await user.save();
 
-    res.json({ msg: 'Investment successful', investment });
-  } catch (e) {
-    res.status(500).json({ msg: 'Investment failed' });
+    res.json({ msg: 'Investment recorded', user });
+  } catch (err) {
+    console.error('Investment error:', err);
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
