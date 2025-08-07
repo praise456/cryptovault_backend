@@ -219,7 +219,7 @@ router.get('/investments', authMiddleware, async (req, res) => {
   }
 });
 
-const dashboardRoutes = require('./routes/dashboard'); // path depends on where you saved it
+
 
 
 // ---------- Admin helpers ----------
