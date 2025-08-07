@@ -202,7 +202,7 @@ app.get('/api/wallet/withdrawals', authMiddleware, async (req, res) => {
 // GET /api/user/investments
 
 
-router.get('/investments', auth, async (req, res) => {
+router.get('/investments', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('investments');
     if (!user) return res.status(404).json({ msg: 'User not found' });
