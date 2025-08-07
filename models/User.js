@@ -1,6 +1,16 @@
 // models/User.js
 const mongoose = require('mongoose');
 
+const investmentSchema = new mongoose.Schema({
+  plan: String,
+  amount: Number,
+  rate: Number,
+  start: Date,
+  end: Date,
+  profit: Number,
+  status: { type: String, default: 'active' },
+}, { _id: false });
+
 const walletEntrySchema = new mongoose.Schema({
   coin: String,
   amount: Number,
