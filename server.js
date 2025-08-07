@@ -226,47 +226,26 @@ app.get('/api/wallet/withdrawals', authMiddleware, async (req, res) => {
 });
 
 // ---------- Investments ----------
-app.post('/api/investments/create', authMiddleware, async (req, res) => {
-  try {
-    const { plan, amount, duration, rate } = req.body || {};
-    if (!plan || amount === undefined || duration === undefined || rate === undefined) {
-      return res.status(422).json({ msg: 'plan, amount, duration and rate are required' });
-    }
+// GET /api/user/investments
+const express = require('express');
+const auth = require('../middleware/auth'); // make sure you have this
+const User = require('../models/User');
 
-    const amt = Number(amount);
-    const dur = Number(duration);
-    const r = Number(rate);
-    if (Number.isNaN(amt) || amt <= 0) return res.status(422).json({ msg: 'Invalid amount' });
-    if (Number.isNaN(dur) || dur <= 0) return res.status(422).json({ msg: 'Invalid duration' });
-    if (Number.isNaN(r) || r < 0) return res.status(422).json({ msg: 'Invalid rate' });
+const router = express.Router();
 
-    const start = new Date();
-    const end = new Date(start.getTime() + dur * 24 * 60 * 60 * 1000);
-    const profit = parseFloat((amt * (r / 100)).toFixed(2));
-
-    const newPlan = { plan, amount: amt, rate: r, start, end, profit, status: 'active' };
-
-    const updated = await User.findByIdAndUpdate(
-      req.user.id,
-      { $push: { investments: newPlan } },
-      { new: true }
-    ).select('-password');
-
-    if (!updated) return res.status(404).json({ msg: 'User not found' });
-    res.json({ msg: 'Investment plan created', investments: updated.investments || [] });
-  } catch (err) {
-    console.error('/investments/create error:', err);
-    res.status(500).json({ msg: 'Server error' });
-  }
-});
-
-app.get('/api/investments', authMiddleware, async (req, res) => {
+router.get('/investments', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('investments');
     if (!user) return res.status(404).json({ msg: 'User not found' });
-    res.json({ investments: user.investments || [] });
+
+    const history = (user.investments || []).map((inv) => ({
+      date: inv.date || inv.createdAt || new Date(), // fallback if no date
+      amount: inv.amount || 0
+    }));
+
+    res.json({ history });
   } catch (err) {
-    console.error('/investments error:', err);
+    console.error('Investment history error:', err);
     res.status(500).json({ msg: 'Server error' });
   }
 });
