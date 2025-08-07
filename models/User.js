@@ -15,25 +15,23 @@ const userSchema = new mongoose.Schema({
 const investmentSchema = new mongoose.Schema({
   plan: String,
   amount: Number,
-  rate: Number,
-  start: Date,
-  end: Date,
-  profit: Number,
-  status: { type: String, default: 'active' },
-}, { _id: false });
-
-const walletEntrySchema = new mongoose.Schema({
-  coin: String,
-  amount: Number,
+  roi: { type: Number, default: 0 },
   date: { type: Date, default: Date.now },
-}, { _id: false });
+  status: { type: String, default: 'active' }
+});
 
 const withdrawalSchema = new mongoose.Schema({
   coin: String,
   amount: Number,
-  status: { type: String, default: 'pending' }, // pending, approved, rejected
+  date: { type: Date, default: Date.now },
+  status: { type: String, default: 'pending' }
+});
+
+const walletSchema = new mongoose.Schema({
+  coin: String,
+  amount: Number,
   date: { type: Date, default: Date.now }
-}, { _id: false });
+});;
 
 
 
