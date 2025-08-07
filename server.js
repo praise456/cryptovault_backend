@@ -203,19 +203,23 @@ app.get('/api/wallet/withdrawals', authMiddleware, async (req, res) => {
 // GET /api/user/investments
 
 
-router.get('/investments', authMiddleware, async (req, res) => {
+// ---------- Investments: history ----------
+app.get('/api/user/investments', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('investments');
-    if (!user) return res.status(404).json({ msg: 'User not found' });
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
 
-    const history = (user.investments || []).map((inv) => ({
-      date: inv.date || inv.createdAt || new Date(), // fallback if no date
+    // Build history array for chart
+    const history = (user.investments || []).map(inv => ({
+      date: inv.date || inv.createdAt || new Date(),
       amount: inv.amount || 0
     }));
 
     res.json({ history });
   } catch (err) {
-    console.error('Investment history error:', err);
+    console.error('/api/user/investments error:', err);
     res.status(500).json({ msg: 'Server error' });
   }
 });
