@@ -4,6 +4,7 @@ const User = require('../models/User');
 
 const router = express.Router();
 
+const app = express();
 // Middleware to verify token
 function auth(req, res, next) {
   const token = req.header('x-auth-token');
