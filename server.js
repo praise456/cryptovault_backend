@@ -250,6 +250,9 @@ router.get('/investments', auth, async (req, res) => {
   }
 });
 
+const dashboardRoutes = require('./routes/dashboard'); // path depends on where you saved it
+app.use('/api/user', dashboardRoutes);
+
 // ---------- Admin helpers ----------
 async function requireAdmin(req, res, next) {
   try {
