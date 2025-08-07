@@ -229,11 +229,7 @@ app.get('/api/wallet/withdrawals', authMiddleware, async (req, res) => {
 
 // ---------- Investments ----------
 // GET /api/user/investments
-const express = require('express');
-const auth = require('../middleware/auth'); // make sure you have this
-const User = require('../models/User');
 
-const router = express.Router();
 
 router.get('/investments', auth, async (req, res) => {
   try {
