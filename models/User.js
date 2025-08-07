@@ -5,7 +5,8 @@ const investmentSchema = new mongoose.Schema({
   plan: { type: String, required: true },
   amount: { type: Number, required: true },
   roi: { type: Number, default: 0 },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  status: { type: String, default: "pending" }
 });
 
 const withdrawalSchema = new mongoose.Schema({
