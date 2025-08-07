@@ -33,18 +33,10 @@ mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   });
 
 // ---------- Schemas & Model ----------
-const investmentSchema = new mongoose.Schema({
-  plan: String,
-  amount: Number,
-  rate: Number,
-  start: Date,
-  end: Date,
-  profit: Number,
-  status: { type: String, default: 'active' },
-}, { _id: false });
 
 
-const User = mongoose.model('User', userSchema);
+
+
 
 // ---------- Helpers ----------
 function isValidEmail(email) {
