@@ -28,8 +28,6 @@ const UserSchema = new mongoose.Schema({
       date: { type: Date, default: Date.now }
     }
   ],
-  investments: [InvestmentSchema],
-  withdrawals: [WithdrawalSchema]
-}, { timestamps: true });
+{ timestamps: true });
 
 module.exports = mongoose.models.User || mongoose.model('User', UserSchema);
