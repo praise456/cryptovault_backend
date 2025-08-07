@@ -1,37 +1,29 @@
 // models/User.js
 const mongoose = require('mongoose');
 
-const UserSchema = new mongoose.Schema({
-  name: { type: String },
-  email: { type: String, required: true, unique: true },
+const walletEntrySchema = new mongoose.Schema({
+  coin: String,
+  amount: Number,
+  date: { type: Date, default: Date.now },
+}, { _id: false });
+
+const withdrawalSchema = new mongoose.Schema({
+  coin: String,
+  amount: Number,
+  status: { type: String, default: 'pending' }, // pending, approved, rejected
+  date: { type: Date, default: Date.now }
+}, { _id: false });
+
+const userSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
+  role: { type: String, default: 'user' }, // 'user' or 'admin'
   balance: { type: Number, default: 0 },
-  role: { type: String, default: 'user' },
-  investments: [
-    {
-      plan: String,
-      amount: Number,
-      roi: Number,
-      date: { type: Date, default: Date.now },
-      status: { type: String, default: 'active' }
-    }
-  ],
-  withdrawals: [
-    {
-      coin: String,
-      amount: Number,
-      date: { type: Date, default: Date.now },
-      status: { type: String, default: 'pending' }
-    }
-  ],
-  wallet: [
-    {
-      coin: String,
-      amount: Number,
-      date: { type: Date, default: Date.now }
-    }
-  ]
-}, { timestamps: true }); // ✅ This is where you use timestamps
+  investments: [investmentSchema],
+  wallet: [walletEntrySchema],
+  withdrawals: [withdrawalSchema]
+}, { timestamps: true });
+
 
 module.exports = mongoose.models.User || mongoose.model('User', UserSchema);
 
