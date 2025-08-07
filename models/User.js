@@ -28,6 +28,7 @@ const UserSchema = new mongoose.Schema({
       date: { type: Date, default: Date.now }
     }
   ],
+}
 { timestamps: true });
 
 module.exports = mongoose.models.User || mongoose.model('User', UserSchema);
