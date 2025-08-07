@@ -7,22 +7,22 @@ const User = require('../models/User');
 
 const router = express.Router();
 
-// Helper for email validation
+// Helper to validate email
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 /**
  * POST /api/register
- * Body: { email, password }
+ * Body: { name, email, password }
  */
 router.post('/register', async (req, res) => {
   try {
-    const { email, password } = req.body || {};
+    const { name, email, password } = req.body || {};
 
     // Basic validation
-    if (!email || !password) {
-      return res.status(422).json({ msg: 'Email and password are required' });
+    if (!name || !email || !password) {
+      return res.status(422).json({ msg: 'Name, email, and password are required' });
     }
     if (!isValidEmail(email)) {
       return res.status(422).json({ msg: 'Please provide a valid email' });
@@ -43,8 +43,12 @@ router.post('/register', async (req, res) => {
     const salt = await bcrypt.genSalt(12);
     const hashed = await bcrypt.hash(password, salt);
 
-    // Save user
-    const user = new User({ email: normalizedEmail, password: hashed });
+    // Save user with name
+    const user = new User({
+      name: name.trim(),
+      email: normalizedEmail,
+      password: hashed
+    });
     await user.save();
 
     // Create token
@@ -52,11 +56,17 @@ router.post('/register', async (req, res) => {
       console.error('JWT_SECRET not set in environment variables');
       return res.status(500).json({ msg: 'Server configuration error' });
     }
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     res.status(201).json({
       token,
-      user: { id: user._id, email: user.email, balance: user.balance || 0 }
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        balance: user.balance || 0
+      }
     });
   } catch (err) {
     console.error('Register error:', err);
@@ -72,12 +82,8 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body || {};
 
-    // Basic validation
     if (!email || !password) {
       return res.status(422).json({ msg: 'Email and password are required' });
-    }
-    if (!isValidEmail(email)) {
-      return res.status(422).json({ msg: 'Please provide a valid email' });
     }
 
     const normalizedEmail = email.toLowerCase().trim();
@@ -95,11 +101,17 @@ router.post('/login', async (req, res) => {
       console.error('JWT_SECRET not set in environment variables');
       return res.status(500).json({ msg: 'Server configuration error' });
     }
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     res.json({
       token,
-      user: { id: user._id, email: user.email, balance: user.balance || 0 }
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        balance: user.balance || 0
+      }
     });
   } catch (err) {
     console.error('Login error:', err);
