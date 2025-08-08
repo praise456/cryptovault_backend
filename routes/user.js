@@ -29,7 +29,7 @@ app.get('/user', async (req, res) => {
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
     res.json({
-      user,
+ 
       id: user._id,
       name: user.name,           // ✅ Make sure name is included
       email: user.email,
