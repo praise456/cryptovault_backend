@@ -25,7 +25,7 @@ const walletSchema = new mongoose.Schema({
 
 // ✅ Now define the main User schema
 const UserSchema = new mongoose.Schema({
-  name: { type: String }, // For dashboard name display
+ name: { type: String, required: true }, // For dashboard name display
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   balance: { type: Number, default: 0 },
