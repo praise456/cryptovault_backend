@@ -204,7 +204,7 @@ app.get('/api/wallet/withdrawals', authMiddleware, async (req, res) => {
 
 
 // ---------- Investments: history ----------
-app.get('/api/user/investments', authMiddleware, async (req, res) => {
+app.get('/api/wallet/investments', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('investments');
     if (!user) {
