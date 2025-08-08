@@ -201,6 +201,41 @@ app.get('/api/wallet/withdrawals', authMiddleware, async (req, res) => {
 
 // ---------- Investments ----------
 // GET /api/user/investments
+// Create a new investment
+app.post('/api/wallet/investments', authMiddleware, async (req, res) => {
+  try {
+    const { plan, amount, rate } = req.body || {};
+    if (!plan) return res.status(422).json({ msg: 'Plan is required' });
+    const amt = Number(amount);
+    if (Number.isNaN(amt) || amt <= 0) return res.status(422).json({ msg: 'Invalid amount' });
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ msg: 'User not found' });
+
+    if (user.balance < amt) return res.status(400).json({ msg: 'Insufficient balance' });
+
+    // Deduct from balance
+    user.balance -= amt;
+
+    // Add investment record
+    const investment = {
+      plan,
+      amount: amt,
+      rate: rate || 0,
+      status: 'active',
+      date: new Date()
+    };
+    user.investments = user.investments || [];
+    user.investments.push(investment);
+
+    await user.save();
+
+    res.json({ msg: 'Investment created', investment, balance: user.balance });
+  } catch (err) {
+    console.error('/wallet/invest error:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
 
 
 // ---------- Investments: history ----------
