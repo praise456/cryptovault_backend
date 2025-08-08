@@ -168,7 +168,7 @@ app.get('/api/wallet/history', authMiddleware, async (req, res) => {
 });
 
 // ---------- Withdrawals (user) ----------
-app.post('/api/wallet/withdraw-request', authMiddleware, async (req, res) => {
+app.post('/api/wallet/withdraw', authMiddleware, async (req, res) => {
   try {
     const { coin, amount } = req.body || {};
     if (!coin) return res.status(422).json({ msg: 'Coin is required' });
@@ -188,21 +188,21 @@ app.post('/api/wallet/withdraw-request', authMiddleware, async (req, res) => {
       { new: true, select: 'withdrawals' }
     ).lean();
 
-    console.log(`[withdraw-request] user=${req.user.id} coin=${coin} amount=${amt}`);
+    console.log(`[withdraw] user=${req.user.id} coin=${coin} amount=${amt}`);
     return res.json({ msg: 'Withdrawal request submitted', withdrawal: updated.withdrawals.slice(-1)[0], withdrawals: updated.withdrawals });
   } catch (err) {
-    console.error('/wallet/withdraw-request error:', err);
+    console.error('/wallet/withdraw error:', err);
     return res.status(500).json({ msg: 'Server error' });
   }
 });
 
-app.get('/api/wallet/withdrawals', authMiddleware, async (req, res) => {
+app.get('/api/wallet/withdraw', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('withdrawals');
     if (!user) return res.status(404).json({ msg: 'User not found' });
     return res.json({ withdrawals: user.withdrawals || [] });
   } catch (err) {
-    console.error('/wallet/withdrawals error:', err);
+    console.error('/wallet/withdrawa error:', err);
     return res.status(500).json({ msg: 'Server error' });
   }
 });
