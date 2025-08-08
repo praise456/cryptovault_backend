@@ -34,7 +34,8 @@ app.get('/user', async (req, res) => {
       name: user.name,           // ✅ Make sure name is included
       email: user.email,
       balance: user.balance || 0
-      investments: user.investments || []
+      investments: user.investments || [],
+      transactions: user.transactions || []
     });
   } catch (err) {
     res.status(401).json({ msg: 'Token is not valid' });
