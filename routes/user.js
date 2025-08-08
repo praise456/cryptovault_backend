@@ -33,7 +33,7 @@ app.get('/user', async (req, res) => {
       id: user._id,
       name: user.name,           // ✅ Make sure name is included
       email: user.email,
-      balance: user.balance || 0
+      balance: user.balance || 0,
       investments: user.investments || [],
       transactions: user.transactions || []
     });
