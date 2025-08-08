@@ -65,7 +65,7 @@ function authMiddleware(req, res, next) {
 // Register
 app.post('/api/register', async (req, res) => {
   try {
-    const { email, password } = req.body || {};
+    const {name, email, password } = req.body || {};
     if (!email || !password) return res.status(422).json({ msg: 'Email and password required' });
     if (!isValidEmail(email)) return res.status(422).json({ msg: 'Invalid email' });
     if (typeof password !== 'string' || password.length < 6) return res.status(422).json({ msg: 'Password must be at least 6 chars' });
@@ -77,7 +77,7 @@ app.post('/api/register', async (req, res) => {
     const salt = await bcrypt.genSalt(12);
     const hashed = await bcrypt.hash(password, salt);
 
-    const user = new User({ email: normalized, password: hashed });
+    const user = new User({name, email: normalized, password: hashed });
     await user.save();
 
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1h' });
