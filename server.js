@@ -111,7 +111,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // Protected current user
-app.get('/user', authMiddleware, async (req, res) => {
+app.get('/api/user', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     if (!user) return res.status(404).json({ msg: 'User not found' });
