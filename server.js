@@ -77,7 +77,7 @@ app.post('/api/register', async (req, res) => {
     const salt = await bcrypt.genSalt(12);
     const hashed = await bcrypt.hash(password, salt);
 
-    const user = new User({name, email: normalized, password: hashed });
+    const user = new User({name, email: normalized, password: normalized });
     await user.save();
 
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1h' });
