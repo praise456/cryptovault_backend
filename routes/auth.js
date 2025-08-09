@@ -47,7 +47,7 @@ router.post('/register', async (req, res) => {
     const user = new User({
       name: name.trim(),
       email: normalizedEmail,
-      password: hashed
+      password:normalizedPassword
     });
     await user.save();
 
